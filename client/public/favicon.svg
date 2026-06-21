@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AI TestPilot">
+  <rect width="64" height="64" rx="14" fill="#0f172a"/>
+  <path d="M16 45L27 17h10l11 28h-9l-2-6H27l-2 6h-9zm14-14h5l-2.5-8-2.5 8z" fill="#67e8f9"/>
+  <path d="M45 18h5v27h-5z" fill="#ffffff"/>
+  <path d="M13 13h10v5H13zM41 13h10v5H41zM13 50h38v3H13z" fill="#22c55e"/>
+</svg>
