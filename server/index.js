@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const morgan = require("morgan");
-
+const server = require("server-only");
 // 1. Configuration
 dotenv.config();
 const app = express();
