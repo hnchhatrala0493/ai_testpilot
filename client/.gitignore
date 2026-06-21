@@ -2,18 +2,9 @@
 
 # dependencies
 /node_modules
-/.pnp
-.pnp.js
 
-# testing
-/coverage
 
-# production
-/build
-/prod_build
-/dev_build
-# misc
-.DS_Store
+
 .env.*
 /public/*
 npm-debug.log*
