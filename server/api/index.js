@@ -11,9 +11,17 @@ const PORT = process.env.PORT || 5000;
 
 // 2. Middlewares
 app.use(cors({
-  origin: 'https://ai-testpilot-qa.vercel.app/',
+  origin: [
+    "https://ai-testpilot-qa.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000"
+  ],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
+
+app.options("*", cors());
 app.use(express.json({ limit: "5mb" })); // Parses incoming JSON requests
 // app.use(morgan("dev")); // Logs requests to the console
 app.use(express.urlencoded({ extended: true, limit: "5mb" })); // Parses URL-encoded data
