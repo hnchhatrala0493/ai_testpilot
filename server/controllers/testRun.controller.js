@@ -5,11 +5,25 @@ const { sendTestExecutionCompletedEmail } = require("../services/email.service")
 const { scopedFilter, withCompany } = require("../utils/companyScope");
 
 function analyzeFailure(testCase) {
+  const slug = testCase.title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
   return {
     errorMessage: `${testCase.title} failed assertion`,
     expectedResult: testCase.expectedResult,
     actualResult: "Observed output did not match the expected result.",
-    screenshot: `${testCase._id}-failure.png`,
+    screenshot: `/artifacts/${testCase._id}/${slug || "failed-test"}-screenshot.png`,
+    videoRecording: `/artifacts/${testCase._id}/${slug || "failed-test"}-recording.webm`,
+    consoleErrors: [
+      "AssertionError: expected result was not visible",
+      "TypeError: Cannot read properties of undefined while resolving workflow state",
+    ],
+    networkLogs: [
+      { method: "GET", url: "/api/test-run/mock", status: 200, duration: 84 },
+      { method: "POST", url: "/api/action/mock", status: 422, duration: 231, error: "Validation failed" },
+    ],
     logs: [
       "AssertionError: expected result was not visible",
       "GET /api/test-run/mock 200",

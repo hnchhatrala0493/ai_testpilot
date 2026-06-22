@@ -225,6 +225,17 @@ export function createTestReport(run) {
     "",
     "Check results:",
     ...run.checks.map((check) => `- [${check.type || "E2E"}] ${check.name}: ${check.status} - ${check.evidence || "No evidence captured"}`),
+    "",
+    "Failed test artifacts:",
+    ...run.checks
+      .filter((check) => check.status === "failed")
+      .flatMap((check) => [
+        `- ${check.name}`,
+        `  Screenshot: ${check.artifacts?.screenshot || "Not captured"}`,
+        `  Video Recording: ${check.artifacts?.videoRecording || "Not captured"}`,
+        `  Console Errors: ${(check.artifacts?.consoleErrors || []).length}`,
+        `  Network Logs: ${(check.artifacts?.networkLogs || []).length}`,
+      ]),
   ];
   return lines.join("\n");
 }

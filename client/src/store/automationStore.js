@@ -84,6 +84,39 @@ const checks = [
   },
 ];
 
+function buildFailureArtifacts(check) {
+  const route = check.target.replace(/[:/]+/g, "-").replace(/^-|-$/g, "") || "workflow";
+  const screenshot = `/artifacts/${check.id}/${route}-screenshot.png`;
+  const videoRecording = `/artifacts/${check.id}/${route}-recording.webm`;
+  const consoleErrors = [
+    `Error: ${check.failMessage}`,
+    `AssertionError: expected ${check.target} to match the completed ${check.name} state`,
+  ];
+  const networkLogs = [
+    {
+      method: "GET",
+      url: check.target,
+      status: 200,
+      duration: 96,
+    },
+    {
+      method: check.type === "API" ? "PATCH" : "POST",
+      url: check.type === "API" ? check.target : `/api${check.target}`,
+      status: check.risk === "Critical" ? 500 : 422,
+      duration: 318,
+      error: check.risk === "Critical" ? "Internal server error" : "Validation mismatch",
+    },
+  ];
+
+  return {
+    screenshot,
+    videoRecording,
+    consoleErrors,
+    networkLogs,
+    traceUrl: `/artifacts/${check.id}/trace.zip`,
+  };
+}
+
 function buildRun(mode) {
   const runChecks =
     mode === "api"
@@ -151,6 +184,7 @@ export const useAutomationStore = create((set, get) => ({
           ...check,
           status: shouldFail ? "failed" : "passed",
           evidence: shouldFail ? check.failMessage : check.passMessage,
+          artifacts: shouldFail ? buildFailureArtifacts(check) : null,
         };
 
         let createdTicketId = "";

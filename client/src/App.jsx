@@ -21,6 +21,8 @@ import TeamChat from "./pages/TeamChat.jsx";
 import MasterData from "./pages/MasterData.jsx";
 import Companies from "./pages/Companies.jsx";
 import ChangePassword from "./pages/ChangePassword.jsx";
+import ComingSoon from "./pages/ComingSoon.jsx";
+import AIAgents from "./pages/AIAgents.jsx";
 import { useAuthStore } from "./store/authStore.js";
 import { hasAnyPermission } from "./utils/hasPermission.js";
 
@@ -36,6 +38,7 @@ const pageTitles = [
   { path: "/bugs/:id", title: "Bug Details" },
   { path: "/projects", title: "Projects" },
   { path: "/projects/:id", title: "Project Details" },
+  { path: "/releases", title: "Releases" },
   { path: "/users", title: "Users" },
   { path: "/companies", title: "Companies" },
   { path: "/roles-permissions", title: "Roles & Permissions" },
@@ -43,6 +46,10 @@ const pageTitles = [
   { path: "/master-data/:section", title: "Master Data" },
   { path: "/reports", title: "Reports" },
   { path: "/automation", title: "AI Automation" },
+  { path: "/test-cases", title: "Test Cases" },
+  { path: "/test-execution", title: "Test Execution" },
+  { path: "/ai-agents", title: "AI Agents" },
+  { path: "/ai-analytics", title: "AI Analytics" },
   { path: "/team-chat", title: "Team Chat" },
   { path: "/audit-logs", title: "Audit Logs" },
   { path: "/settings", title: "Settings" },
@@ -109,6 +116,7 @@ export default function App() {
           <Route path="/bugs/:id" element={<RoleRoute permissions={["bug:view"]}><BugDetails /></RoleRoute>} />
           <Route path="/projects" element={<RoleRoute permissions={["project:view"]}><Projects /></RoleRoute>} />
           <Route path="/projects/:id" element={<RoleRoute permissions={["project:view"]}><ProjectDetails /></RoleRoute>} />
+          <Route path="/releases" element={<RoleRoute permissions={["project:view"]}><ComingSoon page="releases" /></RoleRoute>} />
           <Route path="/users" element={<RoleRoute permissions={["user:view"]}><Users /></RoleRoute>} />
           <Route path="/companies" element={<Companies />} />
           <Route path="/roles-permissions" element={<RoleRoute permissions={["role:view", "role:update"]}><RolesPermissions /></RoleRoute>} />
@@ -116,6 +124,10 @@ export default function App() {
           <Route path="/master-data/:section" element={<RoleRoute permissions={["role:view", "settings:view"]}><MasterData /></RoleRoute>} />
           <Route path="/reports" element={<RoleRoute permissions={["report:view"]}><Reports /></RoleRoute>} />
           <Route path="/automation" element={<RoleRoute permissions={["automation.view"]}><Automation /></RoleRoute>} />
+          <Route path="/test-cases" element={<RoleRoute permissions={["automation.view"]}><Automation /></RoleRoute>} />
+          <Route path="/test-execution" element={<RoleRoute permissions={["automation.view"]}><Automation /></RoleRoute>} />
+          <Route path="/ai-agents" element={<RoleRoute permissions={["automation.view"]}><AIAgents /></RoleRoute>} />
+          <Route path="/ai-analytics" element={<RoleRoute permissions={["report:view"]}><ComingSoon page="ai-analytics" /></RoleRoute>} />
           <Route path="/team-chat" element={<RoleRoute><TeamChat /></RoleRoute>} />
           <Route path="/audit-logs" element={<RoleRoute permissions={["settings:view"]}><AuditLogs /></RoleRoute>} />
           <Route path="/settings" element={<RoleRoute permissions={["settings:view"]}><Settings /></RoleRoute>} />

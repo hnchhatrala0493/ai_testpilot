@@ -1,4 +1,5 @@
 const userService = require("../services/user.service");
+const { Company } = require("../models/company.model");
 const { User } = require("../models/user.model");
 const {
   sendForgotPasswordOtpEmail,
@@ -61,11 +62,61 @@ const buildUserResponse = (user) => ({
   photo: user.photo || user.profileImage,
 });
 
+function slugify(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+async function buildCompanyCode(name) {
+  const baseCode = slugify(name);
+  if (!baseCode) return "";
+
+  let code = baseCode;
+  let suffix = 2;
+  while (await Company.exists({ code })) {
+    code = `${baseCode}-${suffix}`;
+    suffix += 1;
+  }
+  return code;
+}
+
+function normalizeCompanyRegistration(body = {}) {
+  const company = body.company || {};
+  return {
+    name: company.name || body.companyName,
+    email: company.email || body.companyEmail,
+    phone: company.phone || body.companyPhone,
+    website: company.website || body.companyWebsite,
+    size: company.size || body.companySize,
+    industry: company.industry || body.industry,
+    country: company.country || body.country,
+    state: company.state || body.state,
+    city: company.city || body.city,
+    address: company.address || body.companyAddress,
+  };
+}
+
 exports.register = async (req, res) => {
   try {
     // console.log(req.body)
-    const { name, fullName, fullname, email, password, role } = req.body;
+    const { name, fullName, fullname, email, password, confirmPassword } = req.body;
     const displayName = name || fullName || fullname;
+    const companyPayload = normalizeCompanyRegistration(req.body);
+
+    if (!companyPayload.name || !companyPayload.email || !companyPayload.phone || !companyPayload.size || !companyPayload.industry || !companyPayload.country || !companyPayload.state || !companyPayload.city || !companyPayload.address) {
+      return res.status(400).json({ message: "Company details are required" });
+    }
+
+    if (!displayName || !email || !password) {
+      return res.status(400).json({ message: "Full name, email, and password are required" });
+    }
+
+    if (confirmPassword !== undefined && password !== confirmPassword) {
+      return res.status(400).json({ message: "Password and confirm password do not match" });
+    }
 
     // Check if user already exists
     const existingUser = await userService.findUserByEmail(email);
@@ -77,14 +128,25 @@ exports.register = async (req, res) => {
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create a new user
+    const companyCode = await buildCompanyCode(companyPayload.name);
+    if (!companyCode) {
+      return res.status(400).json({ message: "Company name is required" });
+    }
+
+    const company = await Company.create({
+      ...companyPayload,
+      code: companyCode,
+      status: "active",
+    });
+
+    // Create the first company administrator
     const newUser = await userService.createUser({
       name: displayName,
       fullName: fullName || fullname || displayName,
       email,
       password: hashedPassword,
-      role,
-      companyId: req.body.companyId,
+      role: "admin",
+      companyId: company._id,
       ...profileFields.reduce((profile, field) => {
         if (req.body[field] !== undefined) {
           profile[field] = req.body[field];
@@ -92,6 +154,9 @@ exports.register = async (req, res) => {
         return profile;
       }, {}),
     });
+
+    company.createdBy = newUser._id;
+    await company.save();
 
     // Generate a JWT token
     const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, {

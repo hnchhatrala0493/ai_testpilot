@@ -1,6 +1,7 @@
-import { Bot, CircleStop, ClipboardList, Code2, FileJson2, Monitor, Play, Radio, RefreshCcw, Repeat2, ShieldCheck, Sparkles } from "lucide-react";
+import { Bot, Camera, CircleStop, ClipboardList, Code2, FileJson2, Film, Monitor, Play, Radio, RefreshCcw, Repeat2, ShieldCheck, Sparkles, Terminal, Wifi } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useLocation } from "react-router-dom";
 import PageHeader from "../components/PageHeader.jsx";
 import StatCard from "../components/StatCard.jsx";
 import { useAutomationStore } from "../store/automationStore.js";
@@ -17,6 +18,65 @@ function statusClass(status) {
   return "border-line bg-slate-50 text-slate-600";
 }
 
+function ArtifactLink({ href, icon: Icon, label }) {
+  return (
+    <a
+      className="inline-flex items-center gap-2 rounded-md border border-line bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-brand hover:text-brand dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      title={label}
+    >
+      <Icon size={15} />
+      {label}
+    </a>
+  );
+}
+
+function FailedArtifactPanel({ artifacts }) {
+  if (!artifacts) return null;
+
+  return (
+    <div className="mt-4 rounded-md border border-red-100 bg-red-50/60 p-3 dark:border-red-900/60 dark:bg-red-950/20">
+      <div className="flex flex-wrap gap-2">
+        {artifacts.screenshot ? <ArtifactLink href={artifacts.screenshot} icon={Camera} label="Screenshot" /> : null}
+        {artifacts.videoRecording ? <ArtifactLink href={artifacts.videoRecording} icon={Film} label="Video Recording" /> : null}
+      </div>
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-md border border-line bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase text-red-600">
+            <Terminal size={14} />
+            Console Errors
+          </div>
+          <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-slate-700 dark:text-slate-200">
+            {(artifacts.consoleErrors || []).join("\n") || "No console errors captured."}
+          </pre>
+        </div>
+
+        <div className="rounded-md border border-line bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase text-slate-600 dark:text-slate-300">
+            <Wifi size={14} />
+            Network Logs
+          </div>
+          <div className="max-h-32 space-y-2 overflow-auto font-mono text-xs text-slate-700 dark:text-slate-200">
+            {(artifacts.networkLogs || []).map((entry, index) => (
+              <div key={`${entry.method}-${entry.url}-${index}`} className="grid grid-cols-[44px_48px_1fr] gap-2">
+                <span className="font-bold">{entry.method}</span>
+                <span className={entry.status >= 400 ? "text-red-600" : "text-emerald-600"}>{entry.status}</span>
+                <span className="min-w-0 truncate" title={entry.error ? `${entry.url} - ${entry.error}` : entry.url}>
+                  {entry.url} {entry.duration ? `(${entry.duration}ms)` : ""}
+                </span>
+              </div>
+            ))}
+            {(artifacts.networkLogs || []).length === 0 ? <p>No network logs captured.</p> : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const automationTabs = [
   { id: "bug-report", label: "AI Bug Report Generator", icon: FileJson2 },
   { id: "test-cases", label: "AI Test Case Generator", icon: ClipboardList },
@@ -24,6 +84,7 @@ const automationTabs = [
 ];
 
 export default function Automation() {
+  const { pathname } = useLocation();
   const addBug = useBugStore((state) => state.addBug);
   const bugs = useBugStore((state) => state.bugs);
   const projects = useBugStore((state) => state.projects);
@@ -33,7 +94,8 @@ export default function Automation() {
   const canGenerateTestCases = hasPermission(user, "automation.generate-test-cases");
   const canGenerateBug = hasPermission(user, "automation.generate-bug");
   const canCreateBug = hasPermission(user, "bugs.create");
-  const [activeTab, setActiveTab] = useState("bug-report");
+  const initialTab = pathname === "/test-cases" ? "test-cases" : pathname === "/test-execution" ? "result-summary" : "bug-report";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [aiCases, setAiCases] = useState([]);
   const [bugReportJson, setBugReportJson] = useState(null);
   const { register, handleSubmit, reset } = useForm({
@@ -436,6 +498,7 @@ export default function Automation() {
                 </span>
               </div>
               <p className="mt-3 text-sm leading-6 text-slate-600">{check.evidence || "Waiting for the runner to reach this workflow."}</p>
+              {check.status === "failed" ? <FailedArtifactPanel artifacts={check.artifacts} /> : null}
             </article>
           ))}
           {!latest ? <p className="text-sm text-slate-500">Start a run to see live workflow checks.</p> : null}

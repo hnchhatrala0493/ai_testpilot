@@ -269,17 +269,17 @@ export default function Dashboard() {
         ) : null}
         <StatCard label="Total Bugs" value={counts.bugs} icon={Bug} tone="red" variant="color" viewTo="/bugs" />
         <StatCard label="Fixed Bugs" value={counts.fixed} icon={CheckCircle2} tone="emerald" variant="color" viewTo="/bugs" />
-        <StatCard label="Total Test Cases" value={totalTestCases} icon={ClipboardList} tone="violet" variant="color" viewTo="/automation" />
-        <StatCard label="Passed Tests" value={passedTests} icon={ShieldCheck} tone="cyan" variant="color" viewTo="/automation" />
-        <StatCard label="Failed Tests" value={failedTests} icon={XCircle} tone="red" variant="color" viewTo="/automation" />
+        <StatCard label="Total Test Cases" value={totalTestCases} icon={ClipboardList} tone="violet" variant="color" viewTo="/projects" />
+        <StatCard label="Passed Tests" value={passedTests} icon={ShieldCheck} tone="cyan" variant="color" viewTo="/projects" />
+        <StatCard label="Failed Tests" value={failedTests} icon={XCircle} tone="red" variant="color" viewTo="/projects" />
         <StatCard label="Open Bugs" value={counts.open} icon={FolderOpen} tone="amber" variant="color" viewTo="/bugs" />
         <StatCard label="Critical Bugs" value={counts.critical} icon={Bug} tone="violet" variant="color" viewTo="/bugs" />
       </div>
       <section className="mt-6">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-bold">Recent test runs</h2>
-          <Link className="text-sm font-semibold text-brand" to="/automation">
-            View automation
+          <Link className="text-sm font-semibold text-brand" to="/projects">
+            View projects
           </Link>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">

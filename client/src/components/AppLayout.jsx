@@ -1,4 +1,4 @@
-import { Bell, Bot, Bug, Building2, ChartNoAxesColumn, ChevronDown, ClipboardList, Database, FolderKanban, LayoutDashboard, LogOut, Menu, MessageSquare, Moon, Settings, ShieldCheck, Sun, User, Users, X } from "lucide-react";
+import { Bell, Bot, Bug, ChevronDown, FolderKanban, LayoutDashboard, LogOut, Menu, MessageSquare, Moon, Sun, User, X } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore.js";
@@ -10,42 +10,63 @@ import Breadcrumbs from "./Breadcrumbs.jsx";
 
 const navigation = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/bugs", label: "Bugs", icon: Bug, permissions: ["bug:view"] },
-  { to: "/projects", label: "Projects", icon: FolderKanban, permissions: ["project:view"] },
-  { to: "/users", label: "Users", icon: Users, permissions: ["user:view"] },
-  { to: "/companies", label: "Companies", icon: Building2, mainAdminOnly: true },
-  { to: "/roles-permissions", label: "Roles", icon: ShieldCheck, permissions: ["role:view", "role:update"] },
   {
-    label: "Master Data",
-    icon: Database,
-    permissions: ["role:view", "settings:view"],
+    label: "Projects",
+    icon: FolderKanban,
     children: [
-      { to: "/master-data/roles", label: "Role" },
-      { to: "/master-data/project-category", label: "Project Category" },
-      { to: "/master-data/assignment-group", label: "Assignment Group" },
-      { to: "/master-data/designation", label: "Designation" },
-      { to: "/master-data/department", label: "Department" },
+      { to: "/projects", label: "Project List", permissions: ["project:view"] },
+      { to: "/releases", label: "Releases", permissions: ["project:view"] },
     ],
   },
-  { to: "/reports", label: "Reports", icon: ChartNoAxesColumn, permissions: ["report:view"] },
-  { to: "/automation", label: "AI Automation", icon: Bot, permissions: ["automation.view"] },
+  {
+    label: "Bugs",
+    icon: Bug,
+    children: [
+      { to: "/bugs", label: "Open Bugs", permissions: ["bug:view"] },
+      { to: "/reports", label: "Reports", permissions: ["report:view"] },
+    ],
+  },
+  {
+    label: "AI Center",
+    icon: Bot,
+    children: [
+      { to: "/test-execution", label: "Test Execution", permissions: ["automation.view"] },
+      { to: "/test-cases", label: "Test Cases", permissions: ["automation.view"] },
+      { to: "/ai-agents", label: "AI Agents", permissions: ["automation.view"] },
+      { to: "/ai-analytics", label: "AI Analytics", permissions: ["report:view"] },
+    ],
+  },
   { to: "/team-chat", label: "Team Chat", icon: MessageSquare },
-  { to: "/audit-logs", label: "Audit Logs", icon: ClipboardList, permissions: ["settings:view"] },
-  { to: "/settings", label: "Settings", icon: Settings, permissions: ["settings:view"] },
   { to: "/profile", label: "Profile", icon: User },
 ];
 
+function isActiveRoute(pathname, to) {
+  return pathname === to || pathname.startsWith(`${to}/`);
+}
+
+function canSeeItem(user, item) {
+  return !item.permissions?.length || hasAnyPermission(user, item.permissions);
+}
+
 export default function AppLayout() {
   const [open, setOpen] = useState(false);
-  const [expandedMenus, setExpandedMenus] = useState({ "Master Data": false });
+  const [expandedMenus, setExpandedMenus] = useState({
+    Projects: true,
+    Bugs: true,
+    "AI Center": true,
+  });
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const theme = useThemeStore((state) => state.theme);
   const toggleTheme = useThemeStore((state) => state.toggleTheme);
   const navigate = useNavigate();
   const location = useLocation();
-  const visibleNavigation = navigation.filter((item) => !item.permissions?.length || hasAnyPermission(user, item.permissions));
-  const filteredNavigation = visibleNavigation.filter((item) => !item.mainAdminOnly || (user?.role === "super_admin" && !user?.companyId));
+  const filteredNavigation = navigation
+    .map((item) => {
+      if (!item.children?.length) return item;
+      return { ...item, children: item.children.filter((child) => canSeeItem(user, child)) };
+    })
+    .filter((item) => canSeeItem(user, item) && (!item.children || item.children.length));
 
   const handleLogout = () => {
     logout();
@@ -73,7 +94,7 @@ export default function AppLayout() {
         <nav className="space-y-1 p-3">
           {filteredNavigation.map((item) => {
             const hasChildren = Boolean(item.children?.length);
-            const childActive = hasChildren && item.children.some((child) => location.pathname === child.to);
+            const childActive = hasChildren && item.children.some((child) => isActiveRoute(location.pathname, child.to));
             const expanded = childActive || expandedMenus[item.label];
 
             if (hasChildren) {
@@ -100,9 +121,9 @@ export default function AppLayout() {
                           key={child.to}
                           to={child.to}
                           onClick={() => setOpen(false)}
-                          className={({ isActive }) =>
+                          className={() =>
                             `block rounded-md px-3 py-2 text-sm font-semibold transition ${
-                              isActive
+                              isActiveRoute(location.pathname, child.to)
                                 ? "bg-blue-50 text-brand dark:bg-blue-950 dark:text-blue-300"
                                 : "text-slate-500 hover:bg-mist hover:text-ink dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                             }`
@@ -122,9 +143,9 @@ export default function AppLayout() {
                 key={item.to}
                 to={item.to}
                 onClick={() => setOpen(false)}
-                className={({ isActive }) =>
+                className={() =>
                   `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition ${
-                    isActive
+                    isActiveRoute(location.pathname, item.to)
                       ? "bg-blue-50 text-brand dark:bg-blue-950 dark:text-blue-300"
                       : "text-slate-600 hover:bg-mist hover:text-ink dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
                   }`

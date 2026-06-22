@@ -34,6 +34,23 @@ const testResultSchema = new mongoose.Schema(
     screenshot: {
       type: String,
     },
+    videoRecording: {
+      type: String,
+    },
+    consoleErrors: [
+      {
+        type: String,
+      },
+    ],
+    networkLogs: [
+      {
+        method: String,
+        url: String,
+        status: Number,
+        duration: Number,
+        error: String,
+      },
+    ],
     logs: [
       {
         type: String,
