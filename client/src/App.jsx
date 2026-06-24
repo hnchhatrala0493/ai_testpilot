@@ -1,6 +1,7 @@
 import { matchPath, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import AppLayout from "./components/AppLayout.jsx";
+import Landing from "./pages/Landing.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import ForgotPassword from "./pages/ForgotPassword.jsx";
@@ -29,6 +30,7 @@ import { hasAnyPermission } from "./utils/hasPermission.js";
 const APP_NAME = "AI TestPilot";
 
 const pageTitles = [
+  { path: "/", title: "Modern QA Platform" },
   { path: "/login", title: "Login" },
   { path: "/register", title: "Register" },
   { path: "/forgot-password", title: "Forgot Password" },
@@ -105,7 +107,7 @@ export default function App() {
     <>
       <PageTitle />
       <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -134,7 +136,7 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/change-password" element={<ChangePassword />} />
         </Route>
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );
