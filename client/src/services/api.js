@@ -2,8 +2,8 @@ import axios from "axios";
 import { useLoadingStore } from "../store/loadingStore.js";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
-  // baseURL: import.meta.env.VITE_API_URL || "https://ai-testpilot-snowy.vercel.app",
+  // baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
+  baseURL: import.meta.env.VITE_API_URL || "https://ai-testpilot-snowy.vercel.app",
 });
 
 api.interceptors.request.use(
