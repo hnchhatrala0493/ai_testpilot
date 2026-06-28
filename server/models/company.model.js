@@ -28,6 +28,14 @@ const companySchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    logo: {
+      type: String,
+      trim: true,
+    },
+    logoUrl: {
+      type: String,
+      trim: true,
+    },
     size: {
       type: String,
       trim: true,

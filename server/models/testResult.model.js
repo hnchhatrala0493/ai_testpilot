@@ -17,6 +17,11 @@ const testResultSchema = new mongoose.Schema(
       ref: "TestCase",
       required: true,
     },
+    runId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "TestRun",
+      index: true,
+    },
     status: {
       type: String,
       enum: ["Passed", "Failed", "Skipped"],

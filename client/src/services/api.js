@@ -56,6 +56,7 @@ export const projectApi = {
   list: () => api.get("/api/projects"),
   create: (payload) => api.post("/api/projects", payload),
   get: (id) => api.get(`/api/projects/${id}`),
+  repositoryContext: (id) => api.get(`/api/projects/${id}/repository-context`),
   update: (id, payload) => api.put(`/api/projects/${id}`, payload),
   remove: (id) => api.delete(`/api/projects/${id}`),
 };
@@ -112,6 +113,10 @@ export const automationApi = {
 };
 
 export const aiApi = {
+  modules: () => api.get("/api/ai/modules"),
+  module: (slug) => api.get(`/api/ai/modules/${slug}`),
+  updateModule: (slug, payload) => api.put(`/api/ai/modules/${slug}`, payload),
+  runModule: (slug, payload) => api.post(`/api/ai/modules/${slug}/run`, payload),
   generateTestCases: (payload) => api.post("/api/ai/generate-test-cases", payload),
 };
 
@@ -123,6 +128,9 @@ export const testCaseApi = {
 };
 
 export const testRunApi = {
+  start: (payload) => api.post("/api/tests/runs", payload),
+  list: (params) => api.get("/api/tests/runs", { params }),
+  get: (id) => api.get(`/api/tests/runs/${id}`),
   run: (payload) => api.post("/api/tests/run", payload),
   results: (params) => api.get("/api/tests/results", { params }),
   resultByRun: (runId) => api.get(`/api/tests/results/${runId}`),

@@ -7,6 +7,7 @@ const router = express.Router();
 router.use(authRequired);
 router.post("/", projectController.createProject);
 router.get("/", projectController.getProjects);
+router.get("/:id/repository-context", projectController.getProjectRepositoryContext);
 router.get("/:id", projectController.getProjectById);
 router.put("/:id", projectController.updateProject);
 router.delete("/:id", projectController.deleteProject);

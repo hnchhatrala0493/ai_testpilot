@@ -4,8 +4,7 @@
   "description": "",
   "main": "api/index.js",
   "scripts": {
-    "dev": "node api/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "node api/index.js"
   },
   "author": "",
   "license": "ISC",
@@ -23,5 +22,9 @@
     "server-only": "^0.0.1",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@types/node": "^26.0.1"
   }
 }

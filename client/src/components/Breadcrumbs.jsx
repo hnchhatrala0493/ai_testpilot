@@ -17,6 +17,7 @@ const routeLabels = {
   department: "Department",
   reports: "Reports",
   automation: "AI Automation",
+  "start-ai-testing": "Start AI Testing",
   releases: "Releases",
   "test-cases": "Test Cases",
   "test-execution": "Test Execution",

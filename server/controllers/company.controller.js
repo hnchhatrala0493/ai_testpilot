@@ -16,6 +16,8 @@ function normalizeCompanyPayload(body, user) {
     email: body.email,
     phone: body.phone,
     website: body.website,
+    logo: body.logo || body.logoUrl,
+    logoUrl: body.logoUrl || body.logo,
     size: body.size,
     industry: body.industry,
     country: body.country,

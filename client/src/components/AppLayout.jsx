@@ -1,4 +1,4 @@
-import { Bell, Bot, Bug, ChevronDown, FolderKanban, LayoutDashboard, LogOut, Menu, MessageSquare, Moon, Sun, User, X } from "lucide-react";
+import { Bell, Bot, Bug, ChevronDown, FolderKanban, LayoutDashboard, LogOut, Menu, MessageSquare, Moon, Sparkles, Sun, User, X } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore.js";
@@ -30,6 +30,7 @@ const navigation = [
     label: "AI Center",
     icon: Bot,
     children: [
+      { to: "/start-ai-testing", label: "Start AI Testing", permissions: ["automation.view"] },
       { to: "/test-execution", label: "Test Execution", permissions: ["automation.view"] },
       { to: "/test-cases", label: "Test Cases", permissions: ["automation.view"] },
       { to: "/ai-agents", label: "AI Agents", permissions: ["automation.view"] },
@@ -46,6 +47,24 @@ function isActiveRoute(pathname, to) {
 
 function canSeeItem(user, item) {
   return !item.permissions?.length || hasAnyPermission(user, item.permissions);
+}
+
+function BrandLogo({ logo, name }) {
+  if (logo) {
+    return (
+      <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-md border border-line bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950">
+        <img className="h-full w-full object-contain p-1" src={logo} alt={`${name} logo`} />
+      </span>
+    );
+  }
+
+  return (
+    <span className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-md bg-gradient-to-br from-cyan-400 via-blue-600 to-violet-600 text-white shadow-sm shadow-blue-500/25">
+      <span className="absolute inset-x-1 top-1 h-3 rounded-full bg-white/20 blur-sm" />
+      <Bot size={19} strokeWidth={2.4} />
+      <Sparkles className="absolute right-1 top-1 text-cyan-100" size={10} strokeWidth={2.6} />
+    </span>
+  );
 }
 
 export default function AppLayout() {
@@ -67,6 +86,16 @@ export default function AppLayout() {
       return { ...item, children: item.children.filter((child) => canSeeItem(user, child)) };
     })
     .filter((item) => canSeeItem(user, item) && (!item.children || item.children.length));
+  const companyName =
+    user?.companyName ||
+    user?.company?.name ||
+    (typeof user?.companyId === "object" ? user.companyId?.name : "") ||
+    "AI TestPilot";
+  const companyLogo =
+    user?.companyLogo ||
+    user?.company?.logoUrl ||
+    user?.company?.logo ||
+    (typeof user?.companyId === "object" ? user.companyId?.logoUrl || user.companyId?.logo : "");
 
   const handleLogout = () => {
     logout();
@@ -81,11 +110,9 @@ export default function AppLayout() {
         }`}
       >
         <div className="flex h-16 items-center justify-between border-b border-line px-5 dark:border-slate-700">
-          <NavLink to="/dashboard" className="flex items-center gap-3 font-bold" onClick={() => setOpen(false)}>
-            <span className="grid h-9 w-9 place-items-center rounded-md bg-brand text-white">
-              <Bug size={19} />
-            </span>
-            Bug Tracker
+          <NavLink to="/dashboard" className="flex min-w-0 items-center gap-3 font-bold" onClick={() => setOpen(false)}>
+            <BrandLogo logo={companyLogo} name={companyName} />
+            <span className="truncate">{companyName}</span>
           </NavLink>
           <button className="btn-muted h-9 w-9 p-0 lg:hidden" type="button" onClick={() => setOpen(false)} aria-label="Close menu">
             <X size={18} />

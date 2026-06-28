@@ -41,6 +41,18 @@ const buildUserResponse = (user) => ({
   fullname: user.fullName || user.name,
   role: user.role,
   companyId: user.companyId,
+  companyName: user.companyId?.name || "",
+  company: user.companyId && typeof user.companyId === "object"
+    ? {
+        id: user.companyId._id,
+        name: user.companyId.name,
+        code: user.companyId.code,
+        status: user.companyId.status,
+        logo: user.companyId.logo || user.companyId.logoUrl || "",
+        logoUrl: user.companyId.logoUrl || user.companyId.logo || "",
+      }
+    : null,
+  companyLogo: user.companyId?.logo || user.companyId?.logoUrl || "",
   mobile: user.mobile,
   mobileNo: user.mobile,
   employeeId: user.employeeId,

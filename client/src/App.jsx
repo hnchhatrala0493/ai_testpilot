@@ -17,13 +17,14 @@ import Reports from "./pages/Reports.jsx";
 import Profile from "./pages/Profile.jsx";
 import Settings from "./pages/Settings.jsx";
 import Automation from "./pages/Automation.jsx";
+import StartAITesting from "./pages/StartAITesting.jsx";
 import AuditLogs from "./pages/AuditLogs.jsx";
 import TeamChat from "./pages/TeamChat.jsx";
 import MasterData from "./pages/MasterData.jsx";
 import Companies from "./pages/Companies.jsx";
 import ChangePassword from "./pages/ChangePassword.jsx";
 import ComingSoon from "./pages/ComingSoon.jsx";
-import AIAgents from "./pages/AIAgents.jsx";
+import AICenter from "./pages/AICenter.jsx";
 import { useAuthStore } from "./store/authStore.js";
 import { hasAnyPermission } from "./utils/hasPermission.js";
 
@@ -48,6 +49,7 @@ const pageTitles = [
   { path: "/master-data/:section", title: "Master Data" },
   { path: "/reports", title: "Reports" },
   { path: "/automation", title: "AI Automation" },
+  { path: "/start-ai-testing", title: "Start AI Testing" },
   { path: "/test-cases", title: "Test Cases" },
   { path: "/test-execution", title: "Test Execution" },
   { path: "/ai-agents", title: "AI Agents" },
@@ -126,10 +128,12 @@ export default function App() {
           <Route path="/master-data/:section" element={<RoleRoute permissions={["role:view", "settings:view"]}><MasterData /></RoleRoute>} />
           <Route path="/reports" element={<RoleRoute permissions={["report:view"]}><Reports /></RoleRoute>} />
           <Route path="/automation" element={<RoleRoute permissions={["automation.view"]}><Automation /></RoleRoute>} />
-          <Route path="/test-cases" element={<RoleRoute permissions={["automation.view"]}><Automation /></RoleRoute>} />
-          <Route path="/test-execution" element={<RoleRoute permissions={["automation.view"]}><Automation /></RoleRoute>} />
-          <Route path="/ai-agents" element={<RoleRoute permissions={["automation.view"]}><AIAgents /></RoleRoute>} />
-          <Route path="/ai-analytics" element={<RoleRoute permissions={["report:view"]}><ComingSoon page="ai-analytics" /></RoleRoute>} />
+          <Route path="/start-ai-testing" element={<RoleRoute permissions={["automation.view"]}><StartAITesting /></RoleRoute>} />
+          <Route path="/test-cases" element={<RoleRoute permissions={["automation.view"]}><AICenter moduleSlug="test-cases" /></RoleRoute>} />
+          <Route path="/test-execution" element={<RoleRoute permissions={["automation.view"]}><AICenter moduleSlug="test-execution" /></RoleRoute>} />
+          <Route path="/ai-agents" element={<RoleRoute permissions={["automation.view"]}><AICenter moduleSlug="ai-agents" /></RoleRoute>} />
+          <Route path="/ai-analytics" element={<RoleRoute permissions={["report:view"]}><AICenter moduleSlug="ai-analytics" /></RoleRoute>} />
+          <Route path="/ai-center/:slug" element={<RoleRoute permissions={["automation.view", "report:view"]}><AICenter /></RoleRoute>} />
           <Route path="/team-chat" element={<RoleRoute><TeamChat /></RoleRoute>} />
           <Route path="/audit-logs" element={<RoleRoute permissions={["settings:view"]}><AuditLogs /></RoleRoute>} />
           <Route path="/settings" element={<RoleRoute permissions={["settings:view"]}><Settings /></RoleRoute>} />

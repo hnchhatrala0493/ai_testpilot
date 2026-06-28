@@ -1,6 +1,7 @@
 const { Project } = require("../models/project.model");
 const { User } = require("../models/user.model");
 const { sendProjectInvitationEmail } = require("../services/email.service");
+const { buildRepositoryContext } = require("../services/githubRepository.service");
 const { scopedFilter, withCompany } = require("../utils/companyScope");
 
 function normalizeProjectPayload(body, user) {
@@ -66,6 +67,26 @@ exports.getProjectById = async (req, res) => {
     res.status(200).json({ result: project });
   } catch (error) {
     res.status(400).json({ message: error.message });
+  }
+};
+
+exports.getProjectRepositoryContext = async (req, res) => {
+  try {
+    const project = await Project.findOne(scopedFilter(req.user, { _id: req.params.id }));
+    if (!project) return res.status(404).json({ message: "Project not found" });
+    if (!project.githubUrl) return res.status(400).json({ message: "Project GitHub URL is not configured" });
+
+    const context = await buildRepositoryContext(project.githubUrl);
+
+    res.status(200).json({
+      result: {
+        projectId: project._id,
+        projectName: project.projectName,
+        ...context,
+      },
+    });
+  } catch (error) {
+    res.status(error.status || 400).json({ message: error.message });
   }
 };
 
