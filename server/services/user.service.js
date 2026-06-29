@@ -127,7 +127,10 @@ exports.getAllUsers = async (currentUser) => {
 
 exports.findUserByEmail = async (email) => {
   try {
-    const userData = await User.findOne({ email: email });
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    if (!normalizedEmail) return null;
+
+    const userData = await User.findOne({ email: normalizedEmail });
     return userData;
   } catch (error) {
     console.log(error);

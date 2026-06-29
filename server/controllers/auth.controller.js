@@ -195,7 +195,12 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const password = String(req.body.password || "");
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
 
     // Find the user by email
     const user = await userService.findUserByEmail(email);
@@ -223,7 +228,7 @@ exports.login = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
-    res.status(500).json({ message: error });
+    res.status(500).json({ message: error.message || "Unable to login" });
   }
 };
 

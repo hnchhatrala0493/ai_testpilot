@@ -1,6 +1,7 @@
 import { Bell, Bot, Bug, ChevronDown, FolderKanban, LayoutDashboard, LogOut, Menu, MessageSquare, Moon, Sparkles, Sun, User, X } from "lucide-react";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 import { useAuthStore } from "../store/authStore.js";
 import { useThemeStore } from "../store/themeStore.js";
 import { USER_ROLE_LABELS } from "../utils/constants.js";
@@ -97,9 +98,23 @@ export default function AppLayout() {
     user?.company?.logo ||
     (typeof user?.companyId === "object" ? user.companyId?.logoUrl || user.companyId?.logo : "");
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
+  const handleLogout = async () => {
+    const result = await Swal.fire({
+      title: "Logout?",
+      text: "Are you sure you want to logout?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, logout",
+      cancelButtonText: "No",
+      confirmButtonColor: "#2563eb",
+      cancelButtonColor: "#64748b",
+      reverseButtons: true,
+    });
+
+    if (result.isConfirmed) {
+      logout();
+      navigate("/login");
+    }
   };
 
   return (
