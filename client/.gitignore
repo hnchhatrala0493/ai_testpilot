@@ -7,6 +7,10 @@
 
 .env.*
 /public/*
+!/public/favicon.svg
+!/public/og-image.png
+!/public/robots.txt
+!/public/sitemap.xml
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

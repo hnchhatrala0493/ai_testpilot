@@ -1,0 +1,24 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /bugs
+Disallow: /projects
+Disallow: /releases
+Disallow: /users
+Disallow: /companies
+Disallow: /roles-permissions
+Disallow: /master-data
+Disallow: /reports
+Disallow: /automation
+Disallow: /start-ai-testing
+Disallow: /test-cases
+Disallow: /test-execution
+Disallow: /ai-agents
+Disallow: /ai-analytics
+Disallow: /team-chat
+Disallow: /audit-logs
+Disallow: /settings
+Disallow: /profile
+Disallow: /change-password
+
+Sitemap: https://ai-testpilot-snowy.vercel.app/sitemap.xml
