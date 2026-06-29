@@ -1,9 +1,11 @@
 import { Bot, Camera, CircleStop, ClipboardList, Code2, FileJson2, Film, Monitor, Play, Radio, RefreshCcw, Repeat2, ShieldCheck, Sparkles, Terminal, Wifi } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useLocation } from "react-router-dom";
+import { toast } from "react-toastify";
 import PageHeader from "../components/PageHeader.jsx";
 import StatCard from "../components/StatCard.jsx";
+import { projectApi } from "../services/api.js";
 import { useAutomationStore } from "../store/automationStore.js";
 import { useAuthStore } from "../store/authStore.js";
 import { useBugStore } from "../store/bugStore.js";
@@ -77,6 +79,18 @@ function FailedArtifactPanel({ artifacts }) {
   );
 }
 
+function getApiErrorMessage(error, fallback) {
+  return error.response?.data?.message || error.message || fallback;
+}
+
+function normalizeProject(project) {
+  return {
+    ...project,
+    id: project.id || project._id,
+    name: project.name || project.projectName,
+  };
+}
+
 const automationTabs = [
   { id: "bug-report", label: "AI Bug Report Generator", icon: FileJson2 },
   { id: "test-cases", label: "AI Test Case Generator", icon: ClipboardList },
@@ -87,7 +101,7 @@ export default function Automation() {
   const { pathname } = useLocation();
   const addBug = useBugStore((state) => state.addBug);
   const bugs = useBugStore((state) => state.bugs);
-  const projects = useBugStore((state) => state.projects);
+  const fallbackProjects = useBugStore((state) => state.projects);
   const users = useBugStore((state) => state.users);
   const user = useAuthStore((state) => state.user);
   const canRunAutomation = hasPermission(user, "automation.run");
@@ -98,6 +112,10 @@ export default function Automation() {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [aiCases, setAiCases] = useState([]);
   const [bugReportJson, setBugReportJson] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  const [startingMode, setStartingMode] = useState("");
   const { register, handleSubmit, reset } = useForm({
     defaultValues: {
       feature: "Login Page",
@@ -123,10 +141,12 @@ export default function Automation() {
   const history = useAutomationStore((state) => state.history);
   const liveEnabled = useAutomationStore((state) => state.liveEnabled);
   const startRun = useAutomationStore((state) => state.startRun);
+  const loadRuns = useAutomationStore((state) => state.loadRuns);
   const stopRun = useAutomationStore((state) => state.stopRun);
   const toggleLive = useAutomationStore((state) => state.toggleLive);
-  const running = activeRun?.status === "running";
+  const running = activeRun?.status === "running" || activeRun?.status === "queued";
   const latest = activeRun || history[0];
+  const selectedProject = projects.find((project) => project.id === selectedProjectId) || projects[0];
   const generatedCases = bugs.flatMap((bug) => [
     {
       id: `${bug.id}-api`,
@@ -164,6 +184,60 @@ export default function Automation() {
       }
     : { total: 0, api: 0, ui: 0, regression: 0, coveredProjects: 0, passed: 0 };
   const coveragePercent = coverage.total ? Math.round((coverage.passed / coverage.total) * 100) : 0;
+  useEffect(() => {
+    let active = true;
+
+    async function loadProjects() {
+      try {
+        setLoadingProjects(true);
+        const response = await projectApi.list();
+        const nextProjects = (response.data?.result || []).map(normalizeProject);
+
+        if (active) {
+          setProjects(nextProjects);
+          setSelectedProjectId((current) => current || nextProjects[0]?.id || "");
+        }
+      } catch (error) {
+        if (active) {
+          toast.error(getApiErrorMessage(error, "Unable to load projects for automation"));
+          setProjects([]);
+        }
+      } finally {
+        if (active) setLoadingProjects(false);
+      }
+    }
+
+    loadProjects();
+    loadRuns().catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [loadRuns]);
+
+  const handleStartRun = async (mode) => {
+    if (!canRunAutomation || !selectedProject) return;
+
+    try {
+      setStartingMode(mode);
+      await startRun(mode, { projectId: selectedProject.id });
+      toast.success(`${mode === "full" ? "Full" : mode.toUpperCase()} automation run started`);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Unable to start automation run"));
+    } finally {
+      setStartingMode("");
+    }
+  };
+
+  const handleStopRun = async () => {
+    try {
+      await stopRun();
+      toast.success("Automation run stopped");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Unable to stop automation run"));
+    }
+  };
+
   const onGenerateCases = (values) => {
     if (!canGenerateTestCases) return;
 
@@ -227,7 +301,7 @@ export default function Automation() {
   const onCreateGeneratedBug = () => {
     if (!bugReportJson?.bugReport || !canCreateBug) return;
     const report = bugReportJson.bugReport;
-    const firstProject = projects[0];
+    const firstProject = fallbackProjects[0];
     const firstDeveloper = users.find((user) => user.role === "developer") || users[0];
 
     addBug({
@@ -263,14 +337,14 @@ export default function Automation() {
               {liveEnabled ? "Live on" : "Live off"}
             </button>
             {canRunAutomation && running ? (
-              <button className="btn-muted" type="button" onClick={stopRun}>
+              <button className="btn-muted" type="button" onClick={handleStopRun}>
                 <CircleStop size={17} />
                 Stop
               </button>
             ) : canRunAutomation ? (
-              <button className="btn-primary" type="button" onClick={() => startRun("full", addBug)}>
+              <button className="btn-primary" type="button" onClick={() => handleStartRun("full")} disabled={loadingProjects || !selectedProject || Boolean(startingMode)}>
                 <Play size={17} />
-                Run Automated Tests
+                {startingMode === "full" ? "Starting..." : "Run Automated Tests"}
               </button>
             ) : null}
           </div>
@@ -289,20 +363,37 @@ export default function Automation() {
           <Play size={19} />
           <h2 className="font-bold">Test execution</h2>
         </div>
+        <label className="mb-4 block max-w-xl">
+          <span className="label">Project</span>
+          <select
+            className="input mt-1"
+            value={selectedProjectId}
+            onChange={(event) => setSelectedProjectId(event.target.value)}
+            disabled={loadingProjects || running || projects.length === 0}
+          >
+            {loadingProjects ? <option value="">Loading projects...</option> : null}
+            {!loadingProjects && projects.length === 0 ? <option value="">No backend projects found</option> : null}
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <button className="btn-primary justify-start" type="button" onClick={() => startRun("full", addBug)} disabled={running}>
+          <button className="btn-primary justify-start" type="button" onClick={() => handleStartRun("full")} disabled={running || loadingProjects || !selectedProject || Boolean(startingMode)}>
             <Play size={17} />
-            Run Automated Tests
+            {startingMode === "full" ? "Starting..." : "Run Automated Tests"}
           </button>
-          <button className="btn-muted justify-start" type="button" onClick={() => startRun("api", addBug)} disabled={running}>
+          <button className="btn-muted justify-start" type="button" onClick={() => handleStartRun("api")} disabled={running || loadingProjects || !selectedProject || Boolean(startingMode)}>
             <Code2 size={17} />
             API Testing
           </button>
-          <button className="btn-muted justify-start" type="button" onClick={() => startRun("ui", addBug)} disabled={running}>
+          <button className="btn-muted justify-start" type="button" onClick={() => handleStartRun("ui")} disabled={running || loadingProjects || !selectedProject || Boolean(startingMode)}>
             <Monitor size={17} />
             UI Testing
           </button>
-          <button className="btn-muted justify-start" type="button" onClick={() => startRun("regression", addBug)} disabled={running}>
+          <button className="btn-muted justify-start" type="button" onClick={() => handleStartRun("regression")} disabled={running || loadingProjects || !selectedProject || Boolean(startingMode)}>
             <Repeat2 size={17} />
             Regression Testing
           </button>
@@ -476,7 +567,7 @@ export default function Automation() {
             <p className="mt-1 text-sm text-slate-500">Checks update one by one and failed checks create Open bug reports.</p>
           </div>
           {canRunAutomation ? (
-            <button className="btn-muted" type="button" onClick={() => startRun("smoke", addBug)} disabled={running}>
+            <button className="btn-muted" type="button" onClick={() => handleStartRun("smoke")} disabled={running || loadingProjects || !selectedProject || Boolean(startingMode)}>
               <Sparkles size={17} />
               Smoke run
             </button>

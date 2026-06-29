@@ -19,6 +19,7 @@ app.use("/api/projects", require("../routes/project.route"));
 app.use("/api/ai", require("../routes/ai.route"));
 app.use("/api/test-cases", require("../routes/testCase.route"));
 app.use("/api/tests", require("../routes/testRun.route"));
+app.use("/api/automation", require("../routes/automation.route"));
 app.use("/api/bugs", require("../routes/bug.route"));
 app.use("/api/bug", require("../routes/bug.route"));
 app.use("/api/companies", require("../routes/company.route"));

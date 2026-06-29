@@ -1,290 +1,207 @@
 import { create } from "zustand";
+import { automationApi } from "../services/api.js";
 import { useAuditStore } from "./auditStore.js";
 
-const checks = [
-  {
-    id: "check-login",
-    name: "Login and session",
-    target: "/login",
-    type: "UI",
-    owner: "QA Automation",
-    risk: "Critical",
-    passMessage: "Login accepted credentials and redirected to dashboard.",
-    failMessage: "Login submitted successfully but dashboard redirect did not complete.",
-  },
-  {
-    id: "check-create-bug",
-    name: "Create bug report",
-    target: "/bugs/create",
-    type: "UI",
-    owner: "Bug Intake",
-    risk: "High",
-    passMessage: "Bug form created a ticket with status Open and priority Medium.",
-    failMessage: "Screenshot upload control accepted the file but did not preserve filename metadata.",
-  },
-  {
-    id: "check-filter",
-    name: "Filter bugs",
-    target: "/bugs",
-    type: "Regression",
-    owner: "Triage",
-    risk: "Medium",
-    passMessage: "Status, priority, project, and search filters returned consistent table rows.",
-    failMessage: "Project filter did not reset when navigating back from a detail page.",
-  },
-  {
-    id: "check-comments",
-    name: "Comment workflow",
-    target: "/bugs/:id",
-    type: "API",
-    owner: "Collaboration",
-    risk: "Medium",
-    passMessage: "Comment was added to the bug timeline without losing existing updates.",
-    failMessage: "Comment textarea reset before the comment appeared in the activity list.",
-  },
-  {
-    id: "check-reports",
-    name: "Reports analytics",
-    target: "/reports",
-    type: "Regression",
-    owner: "Management",
-    risk: "Low",
-    passMessage: "Report cards and progress bars matched the current bug state.",
-    failMessage: "Resolved percentage did not update after changing a bug to Closed.",
-  },
-  {
-    id: "check-project-api",
-    name: "Project CRUD API",
-    target: "/api/projects",
-    type: "API",
-    owner: "Projects",
-    risk: "High",
-    passMessage: "Project create, update, member add, and delete endpoints returned expected responses.",
-    failMessage: "Project update returned success but member count did not match the saved project.",
-  },
-  {
-    id: "check-bug-api",
-    name: "Bug lifecycle API",
-    target: "/api/bugs",
-    type: "API",
-    owner: "Bugs",
-    risk: "Critical",
-    passMessage: "Bug create, status update, priority update, and comment APIs stayed consistent.",
-    failMessage: "Bug status update response did not match the latest stored ticket state.",
-  },
-  {
-    id: "check-profile-ui",
-    name: "Profile photo UI",
-    target: "/profile",
-    type: "UI",
-    owner: "Profile",
-    risk: "Medium",
-    passMessage: "Profile photo preview and profile fields saved successfully.",
-    failMessage: "Profile photo preview appeared but saved profile data did not keep the image value.",
-  },
-];
+let pollTimer = null;
 
-function buildFailureArtifacts(check) {
-  const route = check.target.replace(/[:/]+/g, "-").replace(/^-|-$/g, "") || "workflow";
-  const screenshot = `/artifacts/${check.id}/${route}-screenshot.png`;
-  const videoRecording = `/artifacts/${check.id}/${route}-recording.webm`;
-  const consoleErrors = [
-    `Error: ${check.failMessage}`,
-    `AssertionError: expected ${check.target} to match the completed ${check.name} state`,
-  ];
-  const networkLogs = [
-    {
-      method: "GET",
-      url: check.target,
-      status: 200,
-      duration: 96,
-    },
-    {
-      method: check.type === "API" ? "PATCH" : "POST",
-      url: check.type === "API" ? check.target : `/api${check.target}`,
-      status: check.risk === "Critical" ? 500 : 422,
-      duration: 318,
-      error: check.risk === "Critical" ? "Internal server error" : "Validation mismatch",
-    },
-  ];
+function clearRunPoll() {
+  if (pollTimer) {
+    window.clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
+function normalizeCheck(check = {}) {
+  const id = check.id || check._id || check.testCaseId?._id || check.testCaseId || check.title;
+  const title = check.name || check.title || check.testCaseId?.title || "Automation check";
+  const failedArtifacts =
+    check.status === "failed"
+      ? {
+          screenshot: check.screenshot,
+          videoRecording: check.videoRecording,
+          consoleErrors: check.consoleErrors || [],
+          networkLogs: check.networkLogs || [],
+          traceUrl: check.traceUrl,
+        }
+      : null;
 
   return {
-    screenshot,
-    videoRecording,
-    consoleErrors,
-    networkLogs,
-    traceUrl: `/artifacts/${check.id}/trace.zip`,
+    ...check,
+    id,
+    name: title,
+    title,
+    target: check.target || check.testCaseId?.title || "Configured target",
+    type: check.type || check.testCaseId?.type || "API",
+    owner: check.owner || check.projectName || "Automation",
+    risk: check.risk || check.priority || "Medium",
+    status: check.status || "queued",
+    progress: check.progress || 0,
+    evidence: check.evidence || check.actualResult || check.errorMessage || check.expectedResult || "",
+    artifacts: failedArtifacts,
   };
 }
 
-function buildRun(mode) {
-  const runChecks =
-    mode === "api"
-      ? checks.filter((check) => check.type === "API")
-      : mode === "ui"
-        ? checks.filter((check) => check.type === "UI")
-        : mode === "regression"
-          ? checks.filter((check) => check.type === "Regression" || check.risk === "Critical")
-          : checks;
+function buildEvents(run, checks) {
+  const startedAt = run.startedAt || run.createdAt || new Date().toISOString();
+  const events = [
+    {
+      id: `${run.id}-started`,
+      type: "info",
+      title: "AI automation run started",
+      message: `${run.runType || "Full"} coverage is checking selected workflows.`,
+      createdAt: startedAt,
+    },
+  ];
+
+  checks
+    .filter((check) => ["passed", "failed", "skipped"].includes(check.status))
+    .forEach((check) => {
+      events.unshift({
+        id: `${run.id}-${check.id}-${check.status}`,
+        type: check.status,
+        title: `${check.name} ${check.status}`,
+        message: check.evidence || `${check.name} finished with status ${check.status}.`,
+        createdAt: check.finishedAt || run.updatedAt || startedAt,
+      });
+    });
+
+  if (run.status === "stopped") {
+    events.unshift({
+      id: `${run.id}-stopped`,
+      type: "info",
+      title: "Run stopped",
+      message: "Live automation was stopped by the user.",
+      createdAt: run.finishedAt || new Date().toISOString(),
+    });
+  }
+
+  return events;
+}
+
+function normalizeRun(run = {}) {
+  const id = run.id || run._id || run.runId;
+  const checks = (run.checks || []).map(normalizeCheck);
+  const passed = run.summary?.passed ?? checks.filter((check) => check.status === "passed").length;
+  const failed = run.summary?.failed ?? checks.filter((check) => check.status === "failed").length;
+  const skipped = run.summary?.skipped ?? checks.filter((check) => check.status === "skipped").length;
+  const completed = run.summary?.completed ?? passed + failed + skipped;
+  const created = run.summary?.created ?? checks.filter((check) => check.bugId).length;
+  const total = run.summary?.total ?? checks.length;
+  const progress = run.summary?.percentage ?? (total ? Math.round((completed / total) * 100) : 0);
+  const normalized = {
+    ...run,
+    id,
+    mode: String(run.runType || run.mode || "full").toLowerCase(),
+    status: run.status || "queued",
+    progress,
+    startedAt: run.startedAt || run.createdAt || new Date().toISOString(),
+    finishedAt: run.finishedAt || "",
+    checks,
+    summary: {
+      ...run.summary,
+      total,
+      completed,
+      passed,
+      failed,
+      skipped,
+      created,
+      percentage: progress,
+    },
+  };
 
   return {
-    id: `run-${Date.now()}`,
-    mode,
-    status: "running",
-    progress: 0,
-    startedAt: new Date().toISOString(),
-    finishedAt: "",
-    summary: {
-      passed: 0,
-      failed: 0,
-      created: 0,
-    },
-    events: [
-      {
-        id: `event-${Date.now()}`,
-        type: "info",
-        title: "AI end-to-end run started",
-        message: `${mode === "full" ? "Full system" : mode.toUpperCase()} coverage is now checking selected workflows.`,
-        createdAt: new Date().toISOString(),
-      },
-    ],
-    checks: runChecks.map((check) => ({ ...check, status: "queued", evidence: "" })),
+    ...normalized,
+    events: buildEvents(normalized, checks),
   };
+}
+
+function resolveRunType(mode) {
+  const value = String(mode || "full").toLowerCase();
+  if (value === "api") return "API";
+  if (value === "ui") return "UI";
+  if (value === "regression") return "Regression";
+  if (value === "unit") return "Unit";
+  if (value === "smoke") return "Smoke";
+  return "Full";
+}
+
+function startPolling(runId, set, get) {
+  clearRunPoll();
+
+  pollTimer = window.setInterval(async () => {
+    try {
+      const response = await automationApi.getRun(runId);
+      const run = normalizeRun(response.data?.result || {});
+      const done = ["completed", "failed", "stopped"].includes(run.status);
+
+      set((state) => ({
+        activeRun: run,
+        history: done ? [run, ...state.history.filter((item) => item.id !== run.id)].slice(0, 6) : state.history,
+      }));
+
+      if (done || !get().liveEnabled) clearRunPoll();
+    } catch (_error) {
+      clearRunPoll();
+    }
+  }, 1500);
 }
 
 export const useAutomationStore = create((set, get) => ({
   activeRun: null,
   history: [],
   liveEnabled: true,
-  startRun: (mode = "full", createBug) => {
-    const run = buildRun(mode);
+  startRun: async (mode = "full", options = {}) => {
+    const payload = {
+      projectId: options.projectId,
+      runType: resolveRunType(mode),
+      autoCreateBug: options.autoCreateBug !== false,
+      generateReport: options.generateReport !== false,
+      limit: options.limit || 50,
+    };
+    const response = await automationApi.startRun(payload);
+    const run = normalizeRun(response.data?.result || {});
+
     set({ activeRun: run });
     useAuditStore.getState().addLog({
       actor: "AI Automation",
       action: "Started automation run",
       module: "Automation",
       target: run.id,
-      details: `${mode} run started.`,
+      details: `${run.mode} run started.`,
       severity: "Medium",
     });
 
-    run.checks.forEach((check, index) => {
-      window.setTimeout(() => {
-        const shouldFail =
-          mode === "api"
-            ? index === 1
-            : mode === "ui"
-              ? index === 2
-              : mode === "regression"
-                ? index === 0
-                : mode === "full"
-                  ? index === 1 || index === 4
-                  : index === 1;
-        const finishedCheck = {
-          ...check,
-          status: shouldFail ? "failed" : "passed",
-          evidence: shouldFail ? check.failMessage : check.passMessage,
-          artifacts: shouldFail ? buildFailureArtifacts(check) : null,
-        };
-
-        let createdTicketId = "";
-        if (shouldFail && createBug) {
-          createdTicketId = createBug({
-            title: `AI detected: ${check.name}`,
-            description: `${check.failMessage}\n\nRoute checked: ${check.target}\nOwner area: ${check.owner}\nSuggested fix: review the affected workflow and rerun the automated check.`,
-            stepsToReproduce: [
-              `Run ${check.type} automation for ${check.name}.`,
-              `Open target ${check.target}.`,
-              "Compare expected result with actual result from the runner.",
-              "Review captured logs and screenshot evidence.",
-            ],
-            expectedResult: check.passMessage,
-            actualResult: check.failMessage,
-            severity: check.risk,
-            project: check.owner === "Management" ? "Customer Portal" : "Billing Engine",
-            assignedTo: "Dev Patel",
-            reporter: "AI Automation",
-            status: "Open",
-            priority: check.risk,
-            type: "Bug",
-            screenshot: `${check.id}-evidence.png`,
-            testCaseReference: check.id,
-            suggestedFix: "Review the affected component/API boundary and add a regression check before closing.",
-          });
-        }
-
-        set((state) => {
-          if (!state.activeRun || state.activeRun.id !== run.id) return state;
-
-          const nextChecks = state.activeRun.checks.map((item) =>
-            item.id === check.id ? finishedCheck : item,
-          );
-          const passed = nextChecks.filter((item) => item.status === "passed").length;
-          const failed = nextChecks.filter((item) => item.status === "failed").length;
-          const completed = passed + failed;
-          const done = completed === nextChecks.length;
-          const event = {
-            id: `event-${Date.now()}-${index}`,
-            type: shouldFail ? "failed" : "passed",
-            title: `${check.name} ${shouldFail ? "failed" : "passed"}`,
-            message: shouldFail
-              ? `${check.failMessage}${createdTicketId ? ` Ticket created: ${createdTicketId}.` : ""}`
-              : check.passMessage,
-            createdAt: new Date().toISOString(),
-          };
-          if (shouldFail) {
-            useAuditStore.getState().addLog({
-              actor: "AI Automation",
-              action: "Detected failed check",
-              module: "Automation",
-              target: check.name,
-              details: event.message,
-              severity: check.risk === "Critical" || check.risk === "High" ? "High" : "Medium",
-            });
-          }
-          const nextRun = {
-            ...state.activeRun,
-            status: done ? "completed" : "running",
-            progress: Math.round((completed / nextChecks.length) * 100),
-            finishedAt: done ? new Date().toISOString() : "",
-            checks: nextChecks,
-            summary: {
-              passed,
-              failed,
-              created: state.activeRun.summary.created + (createdTicketId ? 1 : 0),
-            },
-            events: [event, ...state.activeRun.events],
-          };
-
-          return {
-            activeRun: nextRun,
-            history: done ? [nextRun, ...state.history].slice(0, 6) : state.history,
-          };
-        });
-      }, 1000 + index * 1100);
-    });
+    if (get().liveEnabled) startPolling(run.id, set, get);
+    return run;
   },
-  stopRun: () => {
+  loadRuns: async (params) => {
+    const response = await automationApi.listRuns(params);
+    const runs = (response.data?.result || []).map(normalizeRun);
+    const runningRun = runs.find((run) => ["queued", "running"].includes(run.status));
+    const shouldPoll = !get().activeRun && runningRun && get().liveEnabled;
+
+    set((state) => ({
+      history: runs.slice(0, 6),
+      activeRun: state.activeRun || runningRun || null,
+    }));
+
+    if (shouldPoll) {
+      startPolling(runningRun.id, set, get);
+    }
+
+    return runs;
+  },
+  stopRun: async () => {
     const state = get();
-    if (!state.activeRun) return;
-    const stoppedRun = {
-      ...state.activeRun,
-      status: "stopped",
-      finishedAt: new Date().toISOString(),
-      events: [
-        {
-          id: `event-${Date.now()}`,
-          type: "info",
-          title: "Run stopped",
-          message: "Live automation was stopped by the user.",
-          createdAt: new Date().toISOString(),
-        },
-        ...state.activeRun.events,
-      ],
-    };
+    if (!state.activeRun) return null;
+
+    clearRunPoll();
+    const response = await automationApi.stopRun(state.activeRun.id);
+    const stoppedRun = normalizeRun(response.data?.result || state.activeRun);
+
     set((current) => ({
       activeRun: stoppedRun,
-      history: [stoppedRun, ...current.history].slice(0, 6),
+      history: [stoppedRun, ...current.history.filter((run) => run.id !== stoppedRun.id)].slice(0, 6),
     }));
     useAuditStore.getState().addLog({
       actor: "Current User",
@@ -294,6 +211,15 @@ export const useAutomationStore = create((set, get) => ({
       details: "Automation run was stopped.",
       severity: "Medium",
     });
+
+    return stoppedRun;
   },
-  toggleLive: () => set((state) => ({ liveEnabled: !state.liveEnabled })),
+  toggleLive: () => {
+    set((state) => ({ liveEnabled: !state.liveEnabled }));
+    if (get().liveEnabled && get().activeRun?.id && ["queued", "running"].includes(get().activeRun.status)) {
+      startPolling(get().activeRun.id, set, get);
+    } else {
+      clearRunPoll();
+    }
+  },
 }));

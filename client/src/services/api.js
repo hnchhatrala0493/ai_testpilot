@@ -108,7 +108,8 @@ export const settingsApi = {
 export const automationApi = {
   startRun: (payload) => api.post("/api/automation/runs", payload),
   getRun: (id) => api.get(`/api/automation/runs/${id}`),
-  listRuns: () => api.get("/api/automation/runs"),
+  listRuns: (params) => api.get("/api/automation/runs", { params }),
+  stopRun: (id) => api.post(`/api/automation/runs/${id}/stop`),
   streamUrl: (id) => `${api.defaults.baseURL}/api/automation/runs/${id}/events`,
 };
 

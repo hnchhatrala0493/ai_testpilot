@@ -737,6 +737,28 @@ exports.listRuns = async (req, res) => {
   }
 };
 
+exports.stopRun = async (req, res) => {
+  try {
+    const run = await TestRun.findOne(scopedFilter(req.user, { _id: req.params.id }));
+
+    if (!run) return res.status(404).json({ message: "Test run not found" });
+
+    if (run.status === "completed") {
+      return res.status(200).json({ result: serializeRun(run), message: "Test run already completed" });
+    }
+
+    run.status = "stopped";
+    run.finishedAt = new Date();
+    run.durationMs = run.startedAt ? run.finishedAt.getTime() - run.startedAt.getTime() : run.durationMs;
+    run.summary = calculateSummary(run.checks || []);
+    await run.save();
+
+    res.status(200).json({ result: serializeRun(run), message: "Test run stopped" });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 exports.runTests = async (req, res) => {
   try {
     const filter = {};
